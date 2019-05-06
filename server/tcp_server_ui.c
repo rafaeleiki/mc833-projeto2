@@ -1,4 +1,4 @@
-#include "server_ui.h"
+#include "tcp_server_ui.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,7 +48,7 @@ void show_profile(int socket_fd, Profile* profile, long int *delta) {
 
     _send_message(socket_fd, buffer);
 
-    send_profile_picture(socket_fd, profile, delta);
+    send_profile_picture_tcp(socket_fd, profile, delta);
 
     free(experiences);
 }
@@ -146,7 +146,7 @@ void add_experience(int socket_fd, char *email, struct timeval *time, long int *
 
     char experience[128];
     read(socket_fd, experience, 128);
-;
+
     gettimeofday(&after, NULL);
     *delta = *delta - time_passed(&before, &after);
 
@@ -167,7 +167,7 @@ void add_experience(int socket_fd, char *email, struct timeval *time, long int *
 }
 
 /* Realiza a operação recebida pelo código numérico. */
-void handle_option(int socket_fd, int option, char info[32], struct timeval *time, long int *delta) {
+void tcp_handle_option(int socket_fd, int option, char info[32], struct timeval *time, long int *delta) {
 
     switch (option) {
         case GRADUATED_USERS_OPTION:

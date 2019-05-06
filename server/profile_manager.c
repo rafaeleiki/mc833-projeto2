@@ -3,7 +3,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include "time_utils.h"
+#include "../shared/protocol.h"
 
 typedef int (*FindFunction)(Profile*, char[32]);
 
@@ -156,9 +160,9 @@ int update_profile(Profile *profile) {
 }
 
 /* Retorna os bytes da imagem de um perfil e retorna a quantidade de parâmetros
- * no file_size.
+ * no file_size. Usado para envio TCP.
  */
-void send_profile_picture(int socket_fd, Profile *profile, long int *delta) {
+void send_profile_picture_tcp(int socket_fd, Profile *profile, long int *delta) {
     struct timeval before, after;
     gettimeofday(&before, NULL);
 
@@ -189,6 +193,42 @@ void send_profile_picture(int socket_fd, Profile *profile, long int *delta) {
     *delta = *delta + time_passed(&before, &after);
 
     write(socket_fd, picture_bytes, file_size);
+
+    printf("Arquivo de imagem %s enviado\n\n\n", profile->picture);
+    
+    fclose(file);
+}
+
+/* Retorna os bytes da imagem de um perfil e retorna a quantidade de parâmetros
+ * no file_size. Usado para envio UDP.
+ */
+void send_profile_picture_udp(SocketInfo *socket, Profile *profile) {
+    char path[200];
+    memset(path, 0, 200);
+    sprintf(path, "%s/%s", PICTURES_DIR_NAME, profile->picture);
+    FILE *file = fopen(path, "rb");
+
+    if (!file) {
+        printf("Arquivo de imagem não encontrado: %s\n", profile->picture);
+    }
+
+    // Descobre o tamanho do arquivo
+    fseek(file, 0, SEEK_END);
+    long int file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    int size = sizeof(profile->picture) + 1;
+    sendto(socket->socket_fd, &size, sizeof(size), MSG_CONFIRM, socket->socket_addr, socket->addr_len);
+    sendto(socket->socket_fd, profile->picture, size, MSG_CONFIRM, socket->socket_addr, socket->addr_len);
+    sendto(socket->socket_fd, &file_size, sizeof(file_size), MSG_CONFIRM, socket->socket_addr, socket->addr_len);
+
+    gettimeofday(&socket->time, NULL);
+    unsigned char picture_bytes[BIG_MESSAGE];
+
+    while (file_size > 0) {
+        int read_chars = fread(picture_bytes, 1, BIG_MESSAGE, file);
+        sendto(socket->socket_fd, &picture_bytes, read_chars, MSG_CONFIRM, socket->socket_addr, socket->addr_len);
+    }
 
     printf("Arquivo de imagem %s enviado\n\n\n", profile->picture);
     

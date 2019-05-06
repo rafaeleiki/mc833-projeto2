@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 
-#include "server_ui.h"
+#include "tcp_server_ui.h"
 #include "data_seed.h"
 #include "../shared/protocol.h"
 
@@ -50,7 +50,7 @@ int process_request(int client_socket) {
     printf("Executando operação %d\n\n", option);
 
     long int delta = 0;
-    handle_option(client_socket, option, info, &after, &delta);
+    tcp_handle_option(client_socket, option, info, &after, &delta);
 
     long processing_time = delta + (after.tv_sec - before.tv_sec) * 1000000 + after.tv_usec - before.tv_usec;
     printf("Processamento da requisição: %ldms\n\n", processing_time);

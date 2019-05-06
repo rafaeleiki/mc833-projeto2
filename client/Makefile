@@ -3,5 +3,8 @@ CFLAGS = -Wall
 
 SRC=$(wildcard *.c)
 
-client: $(SRC)
+tcp_client: $(SRC)
+	gcc -o $@ $^ $(CFLAGS) $(LIBS)
+
+udp_client: $(SRC)
 	gcc -o $@ $^ $(CFLAGS) $(LIBS)

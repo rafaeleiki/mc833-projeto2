@@ -2,6 +2,7 @@
 #define PROFILE_MANAGER_H
 
 #include "../shared/profile.h"
+#include "./socket_info.h"
 
 #define DB_FILE_NAME "database.bin"
 #define PICTURES_DIR_NAME "pictures"
@@ -19,6 +20,7 @@ Profile* get_profile(char* email, int *found);
 Profile* get_all_profiles(int *profilesCount);
 Profile* get_profiles_by_address(char* address, int *profilesCount);
 Profile* get_profiles_by_education(char* courseName, int *profilesCount);
-void send_profile_picture(int socket_fd, Profile *profile, long int *delta);
+void send_profile_picture_tcp(int socket_fd, Profile *profile, long int *delta);
+void send_profile_picture_udp(SocketInfo *socket, Profile *profile);
 
 #endif

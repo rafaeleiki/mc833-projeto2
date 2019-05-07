@@ -44,11 +44,8 @@ int udp_process_request(int server_socket) {
     char buffer[BIG_MESSAGE];
     SocketInfo socket_info;
 
-    printf("Esperando...\n");
-    int readed_chars = recvfrom(server_socket, buffer, BIG_MESSAGE,
-                    MSG_WAITALL, &addr, &socket_info.addr_len);
-    printf("CHEGOU...\n");
-
+    recvfrom(server_socket, buffer, BIG_MESSAGE, MSG_WAITALL, &addr, &socket_info.addr_len);
+    
     int option;
     char info[BIG_MESSAGE];
 
@@ -93,7 +90,6 @@ int main() {
 
     struct addrinfo *res = NULL;
     int server_socket = udp_prepare_server_socket(res);
-    pid_t pid;
 
     udp_show_server_info();
     printf("Servidor no ar!\n");

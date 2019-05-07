@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #include <netdb.h> 
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +22,7 @@ int main(int argc, char *argv[]) {
         strcpy(address, "127.0.0.1");
     }
 
-    printf("Conectando com o IP %s\n", address);
+    printf("Servidor no IP %s\n", address);
 
     int option;
 
@@ -34,7 +35,7 @@ int main(int argc, char *argv[]) {
     server_address.sin_port = htons(PORT);
 
     SocketInfo socket_info;
-    socket_info.socket_addr = &server_address;
+    socket_info.socket_addr = (struct sockaddr*) &server_address;
     socket_info.socket_fd = socket_fd;
     socket_info.addr_len = sizeof(server_address);
 

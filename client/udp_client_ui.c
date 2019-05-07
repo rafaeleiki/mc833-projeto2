@@ -34,10 +34,11 @@ void _udp_write_soft_separator() {
 /* Recebe um arquivo de imagem e o armazena. */
 void _udp_receive_picture_file(SocketInfo *socket_info) {
     int message_size;
-    recvfrom(socket_info->socket_fd, &message_size, sizeof(message_size), MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
+    recvfrom(socket_info->socket_fd, &message_size, sizeof(message_size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
 
-    char file_name[message_size];
-    recvfrom(socket_info->socket_fd, &file_name, message_size, MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
+    char file_name[message_size + 1];
+    recvfrom(socket_info->socket_fd, file_name, message_size, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+    file_name[message_size] = '\0';
 
     char file_path[200];
     sprintf(file_path, "pictures/%s", file_name);
@@ -51,13 +52,17 @@ void _udp_receive_picture_file(SocketInfo *socket_info) {
     }
 
     long int file_size;
-    recvfrom(socket_info->socket_fd, &file_size, sizeof(file_size), MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
+    recvfrom(socket_info->socket_fd, &file_size, sizeof(file_size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+
+    printf("Pre file \"%s\", size: %ld\n", file_name, file_size);
 
     // Lê o arquivo enviado pelo servidor e escreve ele
-    unsigned char buffer[FILE_MESSAGE];
+    unsigned char buffer[BIG_MESSAGE];
     while (file_size > 0) {
-        int max_bytes = file_size > FILE_MESSAGE ? FILE_MESSAGE : file_size;
-        int bytes_read = recvfrom(socket_info->socket_fd, &buffer, max_bytes, MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
+        int max_bytes = file_size > BIG_MESSAGE ? BIG_MESSAGE : file_size;
+        printf("Esperando %d\n", max_bytes);
+        int bytes_read = recvfrom(socket_info->socket_fd, buffer, max_bytes, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+        printf("Faltam: %ld\n", file_size);
 
         if (bytes_read > 0) {
             fwrite(buffer, 1, bytes_read, file);
@@ -70,15 +75,13 @@ void _udp_receive_picture_file(SocketInfo *socket_info) {
 
 /* Exibe uma resposta recebida do servidor */
 int _udp_show_text_response(SocketInfo *socket_info, struct timeval *after) {
-    int size, a ;
-    printf("Esperando...\n");
-    a = recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, &socket_info->receiver, socket_info->addr_len);
-
-    printf("A: %d, S: %d\n", a, size);
+    int size;
+    recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
 
     if (size > 0) {
-        char buffer[size];
-        recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, &socket_info->receiver, socket_info->addr_len);
+        char buffer[size + 1];
+        recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+        buffer[size] = '\0';
 
         gettimeofday(after, NULL);
 
@@ -100,7 +103,7 @@ int _udp_show_profile(SocketInfo *socket_info, struct timeval *after) {
 /* Exibe uma lista de perfis vindos do servidor. */
 void _udp_show_profile_list(SocketInfo *socket_info, struct timeval *after) {
     int count;
-    recvfrom(socket_info->socket_fd, &count, sizeof(count), MSG_WAITALL, &socket_info->receiver, socket_info->addr_len);
+    recvfrom(socket_info->socket_fd, &count, sizeof(count), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
 
     printf("Encontrados %d resultado(s)\n", count);
     _udp_write_soft_separator();
@@ -194,7 +197,7 @@ void _udp_server_show_profiles_by_address(SocketInfo *socket_info, struct timeva
     sendto(socket_info->socket_fd, buffer, strlen(buffer), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
 
     int count;
-    recvfrom(socket_info->socket_fd, &count, sizeof(count), MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
+    recvfrom(socket_info->socket_fd, &count, sizeof(count), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
 
     for (int i = 0; i < count; i++) {
         _udp_show_text_response(socket_info, after);

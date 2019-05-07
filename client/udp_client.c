@@ -7,8 +7,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#include "tcp_client_ui.h"
+#include "udp_client_ui.h"
 #include "../shared/protocol.h"
+#include "../shared/socket_info.h"
 
 /* Cliente do serviço de perfil. */
 int main(int argc, char *argv[]) {
@@ -25,24 +26,26 @@ int main(int argc, char *argv[]) {
     int option;
 
     // Cria a conexão com o servidor
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
 
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = inet_addr(address);
     server_address.sin_port = htons(PORT);
 
-    if (connect(socket_fd, (struct sockaddr*) &server_address, sizeof(server_address)) < 0) {
-        perror("Erro de conexão");
-        exit(1);
-    }
+    SocketInfo socket_info;
+    socket_info.socket_addr = &server_address;
+    socket_info.socket_fd = socket_fd;
+    socket_info.addr_len = sizeof(server_address);
 
     // Enquanto não pedir para sair, segue fazendo o mesmo fluxo
     do {
-        writeClientMenu();
-        option = readOption();
-        handle_request(socket_fd, option);
+        udp_write_client_menu();
+        option = udp_read_option();
+        udp_handle_request(&socket_info, option);
     } while (option != EXIT_OPTION);
+
+    close(socket_fd);
     
     return 0;
 }

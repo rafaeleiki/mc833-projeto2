@@ -223,11 +223,13 @@ void send_profile_picture_udp(SocketInfo *socket, Profile *profile) {
     sendto(socket->socket_fd, &file_size, sizeof(file_size), MSG_CONFIRM, socket->socket_addr, socket->addr_len);
 
     gettimeofday(&socket->time, NULL);
-    unsigned char picture_bytes[BIG_MESSAGE];
+    unsigned char picture_bytes[FILE_MESSAGE];
 
     while (file_size > 0) {
-        int read_chars = fread(picture_bytes, 1, BIG_MESSAGE, file);
+        int max_bytes = file_size < FILE_MESSAGE ? file_size : FILE_MESSAGE;
+        int read_chars = fread(picture_bytes, 1, max_bytes, file);
         sendto(socket->socket_fd, &picture_bytes, read_chars, MSG_CONFIRM, socket->socket_addr, socket->addr_len);
+        file_size -= read_chars;
     }
 
     printf("Arquivo de imagem %s enviado\n\n\n", profile->picture);

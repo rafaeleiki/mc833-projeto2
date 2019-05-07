@@ -15,8 +15,9 @@
 /* Envia uma mensagem para o cliente, primeiro o tamanho da mensagem e depois o conteúdo. */
 void _udp_send_message(SocketInfo *socket_info, char *content) {
     int size = strlen(content) + 1;
+    sendto(socket_info->socket_fd, &size, sizeof(size), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
     sendto(socket_info->socket_fd, content, size, MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
-    printf("%s\n", content);
+    printf("lenght: %d\n%s\n", size, content);
 }
 
 /* Retorna uma string com as experiências de um perfil. */
@@ -41,13 +42,12 @@ char* _udp_get_profile_experiences(Profile *profile) {
 void _udp_show_profile(SocketInfo *socket_info, Profile* profile) {
     char buffer[BIG_MESSAGE];
     memset(buffer, 0, BIG_MESSAGE);
-    char* experiences = get_profile_experiences(profile);
+    char* experiences = _udp_get_profile_experiences(profile);
     sprintf(buffer, "Email: %s\nNome: %s    | Sobrenome: %s\nFoto: %s\nResidência: %s\nFormação Acadêmcia: %s\nHabilidades: %s\nExperiências: %s\n", 
             profile->email, profile->name, profile->surename, profile->picture,
             profile->address, profile->education, profile->skills, experiences);
-    printf("%s\n", buffer);
 
-    _send_message(socket_info, buffer);
+    _udp_send_message(socket_info, buffer);
 
     send_profile_picture_udp(socket_info, profile);
 
@@ -56,7 +56,7 @@ void _udp_show_profile(SocketInfo *socket_info, Profile* profile) {
 
 /* Envia as experiências de um perfil. */
 void _udp_show_experiences(SocketInfo *socket_info, Profile* profile) {
-    char *experiences = get_profile_experiences(profile);
+    char *experiences = _udp_get_profile_experiences(profile);
     _udp_send_message(socket_info, experiences);
     free(experiences);
 }
@@ -68,7 +68,7 @@ void _udp_send_not_found(SocketInfo *socket_info) {
 
 /* Envia uma lista de perfis. */
 void _udp_show_profiles_list(SocketInfo *socket_info, Profile* profiles, int profilesCount) {
-    write(socket_info, &profilesCount, sizeof(profilesCount));
+    sendto(socket_info->socket_fd, &profilesCount, sizeof(profilesCount), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
     
     for (int i = 0; i < profilesCount; i++) {
         _udp_show_profile(socket_info, &profiles[i]);
@@ -165,6 +165,8 @@ void _udp_add_experience(SocketInfo *socket_info, char *email, char *extra_info)
 void udp_handle_option(SocketInfo *socket_info, int option, char info[BIG_MESSAGE]) {
     char parameter[32];
     char extra_info[BIG_MESSAGE];
+
+    printf("Procurand opção\n");
 
     if (option == ALL_PROFILE_OPTION) {
         _udp_show_all_profiles(socket_info);

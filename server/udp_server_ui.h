@@ -3,7 +3,7 @@
 
 #include "../shared/profile.h"
 #include "../shared/protocol.h"
-#include "./socket_info.h"
+#include "../shared/socket_info.h"
 
 void udp_handle_option(SocketInfo *socket_info, int option, char info[BIG_MESSAGE]);
 

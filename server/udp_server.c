@@ -12,7 +12,7 @@
 #include "udp_server_ui.h"
 #include "data_seed.h"
 #include "../shared/protocol.h"
-#include "./socket_info.h"
+#include "../shared/socket_info.h"
 
 /* Retorna um file descriptor do socket criado para o servidor. */
 int udp_prepare_server_socket(struct addrinfo *res) {
@@ -44,8 +44,10 @@ int udp_process_request(int server_socket) {
     char buffer[BIG_MESSAGE];
     SocketInfo socket_info;
 
+    printf("Esperando...\n");
     int readed_chars = recvfrom(server_socket, buffer, BIG_MESSAGE,
                     MSG_WAITALL, &addr, &socket_info.addr_len);
+    printf("CHEGOU...\n");
 
     int option;
     char info[BIG_MESSAGE];

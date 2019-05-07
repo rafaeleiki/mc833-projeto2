@@ -2,7 +2,7 @@
 #define PROFILE_MANAGER_H
 
 #include "../shared/profile.h"
-#include "./socket_info.h"
+#include "../shared/socket_info.h"
 
 #define DB_FILE_NAME "database.bin"
 #define PICTURES_DIR_NAME "pictures"

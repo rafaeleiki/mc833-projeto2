@@ -1,10 +1,13 @@
-#include "tcp_client_ui.h"
+#include "udp_client_ui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/socket.h>
+
 #include "../shared/protocol.h"
+#include "../shared/socket_info.h"
 
 #define MIN(x, y) (((x) > (y)) ? (x) : (y))
 
@@ -13,28 +16,28 @@
  * ========================================================
  */
 /* Limpa o buffer de entrada do teclado. */
-void _flush_input() {
+void _udp_flush_input() {
     char c;
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
 /* Desenha um separador. */
-void _write_separator() {
+void _udp_write_separator() {
     printf("\n================ x ================\n\n");
 }
 
 /* Desenha um separador secundário na tela. */
-void _write_soft_separator() {
+void _udp_write_soft_separator() {
     printf("---\n");
 }
 
 /* Recebe um arquivo de imagem e o armazena. */
-void _receive_picture_file(int socket_fd) {
+void _udp_receive_picture_file(SocketInfo *socket_info) {
     int message_size;
-    read(socket_fd, &message_size, sizeof(message_size));
+    recvfrom(socket_info->socket_fd, &message_size, sizeof(message_size), MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
 
     char file_name[message_size];
-    read(socket_fd, file_name, message_size);
+    recvfrom(socket_info->socket_fd, &file_name, message_size, MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
 
     char file_path[200];
     sprintf(file_path, "pictures/%s", file_name);
@@ -48,15 +51,16 @@ void _receive_picture_file(int socket_fd) {
     }
 
     long int file_size;
-    read(socket_fd, &file_size, sizeof(file_size));
+    recvfrom(socket_info->socket_fd, &file_size, sizeof(file_size), MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
 
     // Lê o arquivo enviado pelo servidor e escreve ele
-    unsigned char image[file_size];
+    unsigned char buffer[FILE_MESSAGE];
     while (file_size > 0) {
-        int bytes_read = read(socket_fd, image, file_size);
+        int max_bytes = file_size > FILE_MESSAGE ? FILE_MESSAGE : file_size;
+        int bytes_read = recvfrom(socket_info->socket_fd, &buffer, max_bytes, MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
 
         if (bytes_read > 0) {
-            fwrite(image, 1, bytes_read, file);
+            fwrite(buffer, 1, bytes_read, file);
             file_size -= bytes_read;
         }
     }
@@ -65,17 +69,20 @@ void _receive_picture_file(int socket_fd) {
 }
 
 /* Exibe uma resposta recebida do servidor */
-int _show_text_response(int socket_fd, struct timeval *after) {
-    int size;
-    read(socket_fd, &size, sizeof(size));
+int _udp_show_text_response(SocketInfo *socket_info, struct timeval *after) {
+    int size, a ;
+    printf("Esperando...\n");
+    a = recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, &socket_info->receiver, socket_info->addr_len);
+
+    printf("A: %d, S: %d\n", a, size);
 
     if (size > 0) {
         char buffer[size];
-        read(socket_fd, buffer, size);
+        recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, &socket_info->receiver, socket_info->addr_len);
 
         gettimeofday(after, NULL);
 
-        _write_soft_separator();
+        _udp_write_soft_separator();
         printf("%s", buffer);
     }
     
@@ -83,28 +90,23 @@ int _show_text_response(int socket_fd, struct timeval *after) {
 }
 
 /* Exibe os dados de um perfil recebidos pelo servidor */
-int _show_profile(int socket_fd, struct timeval *after) {
-    int end = _show_text_response(socket_fd, after);
-
-    //if (showing) {
-    //    printf("%s", buffer);
-        _receive_picture_file(socket_fd);
-    //    _write_soft_separator();
-    //}
+int _udp_show_profile(SocketInfo *socket_info, struct timeval *after) {
+    int end = _udp_show_text_response(socket_info, after);
+    _udp_receive_picture_file(socket_info);
 
     return end > 0;
 }
 
 /* Exibe uma lista de perfis vindos do servidor. */
-void _show_profile_list(int socket_fd, struct timeval *after) {
+void _udp_show_profile_list(SocketInfo *socket_info, struct timeval *after) {
     int count;
-    read(socket_fd, &count, sizeof(count));
+    recvfrom(socket_info->socket_fd, &count, sizeof(count), MSG_WAITALL, &socket_info->receiver, socket_info->addr_len);
 
     printf("Encontrados %d resultado(s)\n", count);
-    _write_soft_separator();
+    _udp_write_soft_separator();
 
     for (int i = 0; i < count; i++) {
-        _show_profile(socket_fd, after);
+        _udp_show_profile(socket_info, after);
     }
 }
 
@@ -113,7 +115,7 @@ void _show_profile_list(int socket_fd, struct timeval *after) {
  * ========================================================
  */
 /* Exibe os dados de um perfil em específico. */
-void _server_show_single_profile(int socket_fd, struct timeval *before, struct timeval *after) {
+void _udp_server_show_single_profile(SocketInfo *socket_info, struct timeval *before, struct timeval *after) {
     char email[32];
     char buffer[128];
     printf("Digite o endereço de email do usuário: ");
@@ -122,13 +124,13 @@ void _server_show_single_profile(int socket_fd, struct timeval *before, struct t
     sprintf(buffer, "%d %s", PROFILE_ALL_INFO_OPTION, email);
 
     gettimeofday(before, NULL);
-    write(socket_fd, buffer, strlen(buffer) + 1);
+    sendto(socket_info->socket_fd, buffer, strlen(buffer), 0, socket_info->socket_addr, socket_info->addr_len);
 
-    _show_profile(socket_fd, after);
+    _udp_show_profile(socket_info, after);
 }
 
 /* Exibe as experiências de um perfil específico. */
-void _server_show_experiences(int socket_fd, struct timeval *before, struct timeval *after) {
+void _udp_server_show_experiences(SocketInfo *socket_info, struct timeval *before, struct timeval *after) {
     char email[32];
     char buffer[128];
     printf("Digite o endereço de email do usuário: ");
@@ -137,33 +139,35 @@ void _server_show_experiences(int socket_fd, struct timeval *before, struct time
     sprintf(buffer, "%d %s", PROFILE_EXPERIENCE_OPTION, email);
 
     gettimeofday(before, NULL);
-    write(socket_fd, buffer, strlen(buffer) + 1);
+    sendto(socket_info->socket_fd, buffer, strlen(buffer), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
 
-    _show_text_response(socket_fd, after);
+    _udp_show_text_response(socket_info, after);
 }
 
 /* Adiciona uma experiência a um perfil. */
-void _server_add_experience(int socket_fd, struct timeval *before, struct timeval *after) {
-    char buffer[128];
+void _udp_server_add_experience(SocketInfo *socket_info, struct timeval *before, struct timeval *after) {
+    char buffer[256];
     char email[32];
     printf("Digite o endereço de email do usuário: ");
     scanf("%s", email);
     sprintf(buffer, "%d %s", NEW_EXPERIENCE_OPTION, email);
-    write(socket_fd, buffer, strlen(buffer) + 1);
-
+    
     char experience[64];
     printf("Digite a nova experiência do usuário: ");
-    _flush_input();
+    _udp_flush_input();
     scanf("%[^\n]", experience);
 
-    gettimeofday(before, NULL);
-    write(socket_fd, experience, strlen(experience) + 1);
+    strcat(buffer, " ");
+    strcat(buffer, experience);
 
-    _show_text_response(socket_fd, after);
+    gettimeofday(before, NULL);
+    sendto(socket_info->socket_fd, buffer, strlen(buffer), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
+
+    _udp_show_text_response(socket_info, after);
 }
 
 /* Requisita ao servidor todos os perfis com a mesma formação acadêmica e os exibe. */
-void _server_show_profiles_by_education(int socket_fd, struct timeval *before, struct timeval *after) {
+void _udp_server_show_profiles_by_education(SocketInfo *socket_info, struct timeval *before, struct timeval *after) {
     char education[32];
     char buffer[128];
     printf("Digite a formação acadêmica procurada: ");
@@ -172,13 +176,13 @@ void _server_show_profiles_by_education(int socket_fd, struct timeval *before, s
     sprintf(buffer, "%d %s", GRADUATED_USERS_OPTION, education);
 
     gettimeofday(before, NULL);
-    write(socket_fd, buffer, strlen(buffer) + 1);
+    sendto(socket_info->socket_fd, buffer, strlen(buffer), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
 
-    _show_profile_list(socket_fd, after);
+    _udp_show_profile_list(socket_info, after);
 }
 
 /* Mostra todas as habilidades dos perfis da mesma cidade. */
-void _server_show_profiles_by_address(int socket_fd, struct timeval *before, struct timeval *after) {
+void _udp_server_show_profiles_by_address(SocketInfo *socket_info, struct timeval *before, struct timeval *after) {
     char address[32];
     char buffer[128];
     printf("Digite a cidade procurada: ");
@@ -187,13 +191,13 @@ void _server_show_profiles_by_address(int socket_fd, struct timeval *before, str
     sprintf(buffer, "%d %s", SKILLS_FROM_CITY_OPTION, address);
 
     gettimeofday(before, NULL);
-    write(socket_fd, buffer, strlen(buffer) + 1);
+    sendto(socket_info->socket_fd, buffer, strlen(buffer), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
 
     int count;
-    read(socket_fd, &count, sizeof(count));
+    recvfrom(socket_info->socket_fd, &count, sizeof(count), MSG_WAITALL, socket_info->socket_addr, socket_info->addr_len);
 
     for (int i = 0; i < count; i++) {
-        _show_text_response(socket_fd, after);
+        _udp_show_text_response(socket_info, after);
     }
 }
 
@@ -203,7 +207,7 @@ void _server_show_profiles_by_address(int socket_fd, struct timeval *before, str
  */
 
 /* Desenha o menu principal */
-void writeClientMenu() {
+void udp_write_client_menu() {
     printf("Olá! Bem-vindo ao sistema de recrutamento. O que você deseja fazer?\n");
     printf("(%d) Ver pessoas formadas em um curso\n", GRADUATED_USERS_OPTION);
     printf("(%d) Habilidades de perfis de uma cidade\n", SKILLS_FROM_CITY_OPTION);
@@ -217,14 +221,14 @@ void writeClientMenu() {
 /* Realiza a leitura de uma opção. Caso ela seja inválida, uma nova é pedida até
  * se obter uma opção condizente com os serviços disponíveis.
  */
-int readOption() {
+int udp_read_option() {
     int option;
     int valid;
 
     // Enquanto não teve uma opção válida
     do {
         scanf("%d", &option);
-        _flush_input();
+        _udp_flush_input();
 
         valid = option >= MIN_OPTION && option <= MAX_OPTION;
 
@@ -237,38 +241,37 @@ int readOption() {
 }
 
 /* Maneja a requisição para o servidor e exibe sua resposta. */
-void handle_request(int socket_fd, int option) {
+void udp_handle_request(SocketInfo *socket_info, int option) {
 
     struct timeval before, after;
 
     switch (option) {
         case GRADUATED_USERS_OPTION:
-            _server_show_profiles_by_education(socket_fd, &before, &after);
+            _udp_server_show_profiles_by_education(socket_info, &before, &after);
             break;
         case SKILLS_FROM_CITY_OPTION:
-            _server_show_profiles_by_address(socket_fd, &before, &after);
+            _udp_server_show_profiles_by_address(socket_info, &before, &after);
             break;
         case NEW_EXPERIENCE_OPTION:
-            _server_add_experience(socket_fd, &before, &after);
+            _udp_server_add_experience(socket_info, &before, &after);
             break;
         case PROFILE_EXPERIENCE_OPTION:
-            _server_show_experiences(socket_fd, &before, &after);
+            _udp_server_show_experiences(socket_info, &before, &after);
             break;
         case ALL_PROFILE_OPTION:
             gettimeofday(&before, NULL);
-            write(socket_fd, "5", 2);
-            _show_profile_list(socket_fd, &after);
+            sendto(socket_info->socket_fd, "5", 2, MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
+            _udp_show_profile_list(socket_info, &after);
             break;
         case PROFILE_ALL_INFO_OPTION:
-            _server_show_single_profile(socket_fd, &before, &after);
+            _udp_server_show_single_profile(socket_info, &before, &after);
             break;
         case EXIT_OPTION:
-            write(socket_fd, "7", 2);
             break;
     }
     
     long request_time = (after.tv_sec - before.tv_sec) * 1000000 + after.tv_usec - before.tv_usec;
     printf("Duração da requisição: %ldms\n\n", request_time);
 
-    _write_separator();
+    _udp_write_separator();
 }

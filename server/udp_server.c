@@ -25,7 +25,7 @@ int udp_prepare_server_socket(struct addrinfo *res) {
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+    address.sin_port = htons(UDP_PORT);
 
     if (bind(sock_fd, (struct sockaddr*) &address, sizeof(address)) != 0) {
         perror("Falha no servidor");
@@ -38,33 +38,36 @@ int udp_prepare_server_socket(struct addrinfo *res) {
 }
 
 /* Processa uma requisição do cliente. */
-int udp_process_request(int server_socket) {
+void udp_process_request(int server_socket) {
 
     struct sockaddr addr;
     char buffer[BIG_MESSAGE];
     SocketInfo socket_info;
 
-    recvfrom(server_socket, buffer, BIG_MESSAGE, MSG_WAITALL, &addr, &socket_info.addr_len);
+    int bytes_read = recvfrom(server_socket, buffer, BIG_MESSAGE, MSG_WAITALL, &addr, &socket_info.addr_len);
     
-    int option;
-    char info[BIG_MESSAGE];
+    if (bytes_read <= 0) {
+        printf("Falha ao receber datagrama\n");
+    } else {
+        buffer[bytes_read] = '\0';
+        int option;
+        char info[BIG_MESSAGE];
 
-    struct timeval before;
-    gettimeofday(&before, NULL);
+        struct timeval before;
+        gettimeofday(&before, NULL);
 
-    sscanf(buffer, "%d %s", &option, info);
-    printf("Executando operação %d\n\n", option);
+        sscanf(buffer, "%d %s", &option, info);
+        printf("Executando operação %s\n\n", buffer);
 
-    long int delta = 0;
-    socket_info.socket_addr = &addr;
-    socket_info.socket_fd = server_socket;
-    udp_handle_option(&socket_info, option, info);
+        long int delta = 0;
+        socket_info.socket_addr = &addr;
+        socket_info.socket_fd = server_socket;
+        udp_handle_option(&socket_info, option, info);
 
-    long processing_time = delta + (socket_info.time.tv_sec - before.tv_sec) * 1000000 
-                           + socket_info.time.tv_usec - before.tv_usec;
-    printf("Processamento da requisição: %ldms\n\n", processing_time);
-
-    return option;
+        long processing_time = delta + (socket_info.time.tv_sec - before.tv_sec) * 1000000 
+                                + socket_info.time.tv_usec - before.tv_usec;
+        printf("Processamento da requisição: %ldms\n\n", processing_time);
+    }
 }
 
 void udp_show_server_info() {

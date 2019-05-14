@@ -4,8 +4,15 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 
+/*
+#ifndef MSG_CONFIRM
 #define MSG_CONFIRM 0
-//#define MSG_WAITALL 0
+#endif
+
+#ifndef MSG_WAITALL
+#define MSG_WAITALL 0
+#endif
+*/
 
 typedef struct SocketInfo {
     int socket_fd;

@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_addr.s_addr = inet_addr(address);
-    server_address.sin_port = htons(PORT);
+    server_address.sin_port = htons(UDP_PORT);
 
     SocketInfo socket_info;
     socket_info.socket_addr = (struct sockaddr*) &server_address;

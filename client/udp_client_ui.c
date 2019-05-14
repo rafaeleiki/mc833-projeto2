@@ -62,7 +62,7 @@ void _udp_receive_picture_file(SocketInfo *socket_info) {
         int max_bytes = file_size > BIG_MESSAGE ? BIG_MESSAGE : file_size;
         printf("Esperando %d\n", max_bytes);
         int bytes_read = recvfrom(socket_info->socket_fd, buffer, max_bytes, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
-        printf("Faltam: %ld\n", file_size);
+        printf("Faltam: %ld\n", file_size - bytes_read);
 
         if (bytes_read > 0) {
             fwrite(buffer, 1, bytes_read, file);
@@ -76,11 +76,13 @@ void _udp_receive_picture_file(SocketInfo *socket_info) {
 /* Exibe uma resposta recebida do servidor */
 int _udp_show_text_response(SocketInfo *socket_info, struct timeval *after) {
     int size;
-    recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+    int bytes_read = recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+    printf("%d bytes lidos; Resposta de tamanho %d\n", bytes_read, size);
 
     if (size > 0) {
         char buffer[size + 1];
-        recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+        bytes_read = recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
+        printf("%d bytes lidos de %d\n", bytes_read, size);
         buffer[size] = '\0';
 
         gettimeofday(after, NULL);
@@ -95,7 +97,11 @@ int _udp_show_text_response(SocketInfo *socket_info, struct timeval *after) {
 /* Exibe os dados de um perfil recebidos pelo servidor */
 int _udp_show_profile(SocketInfo *socket_info, struct timeval *after) {
     int end = _udp_show_text_response(socket_info, after);
-    _udp_receive_picture_file(socket_info);
+    
+    // Menos que isso significa que não foi encontrado perfil
+    if (end > 50) {
+        _udp_receive_picture_file(socket_info);
+    }
 
     return end > 0;
 }
@@ -216,7 +222,6 @@ void udp_write_client_menu() {
     printf("(%d) Habilidades de perfis de uma cidade\n", SKILLS_FROM_CITY_OPTION);
     printf("(%d) Acrescentar experiência no perfil\n", NEW_EXPERIENCE_OPTION);
     printf("(%d) Experiências de um perfil específico\n", PROFILE_EXPERIENCE_OPTION);
-    printf("(%d) Todas as informações de todos os perfis\n", ALL_PROFILE_OPTION);
     printf("(%d) Todas as informações de um perfil\n", PROFILE_ALL_INFO_OPTION);
     printf("(%d) Sair\n\n", EXIT_OPTION);
 }
@@ -260,11 +265,6 @@ void udp_handle_request(SocketInfo *socket_info, int option) {
             break;
         case PROFILE_EXPERIENCE_OPTION:
             _udp_server_show_experiences(socket_info, &before, &after);
-            break;
-        case ALL_PROFILE_OPTION:
-            gettimeofday(&before, NULL);
-            sendto(socket_info->socket_fd, "5", 2, MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
-            _udp_show_profile_list(socket_info, &after);
             break;
         case PROFILE_ALL_INFO_OPTION:
             _udp_server_show_single_profile(socket_info, &before, &after);

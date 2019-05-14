@@ -230,6 +230,7 @@ void send_profile_picture_udp(SocketInfo *socket, Profile *profile) {
         int read_chars = fread(picture_bytes, 1, max_bytes, file);
         sendto(socket->socket_fd, picture_bytes, read_chars, MSG_CONFIRM, socket->socket_addr, socket->addr_len);
 
+        printf("%ld\n", file_size);
         file_size -= read_chars;
     }
 

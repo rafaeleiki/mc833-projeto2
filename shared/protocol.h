@@ -2,6 +2,7 @@
 #define PROTOCOL_H
 
 #define PORT 8080
+#define UDP_PORT 8284
 
 #define GRADUATED_USERS_OPTION 1
 #define SKILLS_FROM_CITY_OPTION 2

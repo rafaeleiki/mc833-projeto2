@@ -14,7 +14,7 @@
 
 /* Envia uma mensagem para o cliente, primeiro o tamanho da mensagem e depois o conteúdo. */
 void _udp_send_message(SocketInfo *socket_info, char *content) {
-    int size = strlen(content) + 1;
+    int size = strlen(content);
     sendto(socket_info->socket_fd, &size, sizeof(size), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
     sendto(socket_info->socket_fd, content, size, MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
     printf("lenght: %d\n%s\n", size, content);
@@ -67,10 +67,11 @@ void _udp_send_not_found(SocketInfo *socket_info) {
 }
 
 /* Envia uma lista de perfis. */
-void _udp_show_profiles_list(SocketInfo *socket_info, Profile* profiles, int profilesCount) {
-    sendto(socket_info->socket_fd, &profilesCount, sizeof(profilesCount), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
+void _udp_show_profiles_list(SocketInfo *socket_info, Profile* profiles, int profiles_count) {
+    printf("Enviando %d resultados encontrados\n", profiles_count);
+    sendto(socket_info->socket_fd, &profiles_count, sizeof(profiles_count), MSG_CONFIRM, socket_info->socket_addr, socket_info->addr_len);
     
-    for (int i = 0; i < profilesCount; i++) {
+    for (int i = 0; i < profiles_count; i++) {
         _udp_show_profile(socket_info, &profiles[i]);
     }
     
@@ -100,14 +101,6 @@ void _udp_show_all_from_address(SocketInfo *socket_info, char address[32]) {
     }
 
     free(profiles);
-}
-
-/* Envia todos os perfis para o cliente. */
-void _udp_show_all_profiles(SocketInfo *socket_info) {
-    int count;
-    Profile* profiles = get_all_profiles(&count);
-    gettimeofday(&socket_info->time, NULL);
-    _udp_show_profiles_list(socket_info, profiles, count);
 }
 
 /* Envia todas as experiências para o cliente */
@@ -168,27 +161,24 @@ void udp_handle_option(SocketInfo *socket_info, int option, char info[BIG_MESSAG
 
     printf("Procurand opção\n");
 
-    if (option == ALL_PROFILE_OPTION) {
-        _udp_show_all_profiles(socket_info);
-    } else {
-        sscanf(info, "%s %[^\n]s", parameter, extra_info);
+    sscanf(info, "%s %[^\n]s", parameter, extra_info);
 
-        switch (option) {
-            case GRADUATED_USERS_OPTION:
-                _udp_show_all_from_course(socket_info, parameter);
-                break;
-            case SKILLS_FROM_CITY_OPTION:
-                _udp_show_all_from_address(socket_info, parameter);
-                break;
-            case NEW_EXPERIENCE_OPTION:
-                _udp_add_experience(socket_info, parameter, extra_info);
-                break;
-            case PROFILE_EXPERIENCE_OPTION:
-                _udp_show_all_experiences(socket_info, parameter);
-                break;
-            case PROFILE_ALL_INFO_OPTION:
-                _udp_show_single_profile(socket_info, parameter);
-                break;
-        }
+    switch (option) {
+        case GRADUATED_USERS_OPTION:
+            _udp_show_all_from_course(socket_info, parameter);
+            break;
+        case SKILLS_FROM_CITY_OPTION:
+            _udp_show_all_from_address(socket_info, parameter);
+            break;
+        case NEW_EXPERIENCE_OPTION:
+            _udp_add_experience(socket_info, parameter, extra_info);
+            break;
+        case PROFILE_EXPERIENCE_OPTION:
+            _udp_show_all_experiences(socket_info, parameter);
+            break;
+        case PROFILE_ALL_INFO_OPTION:
+            _udp_show_single_profile(socket_info, parameter);
+            break;
     }
+    
 }

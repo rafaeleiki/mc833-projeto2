@@ -76,13 +76,11 @@ void _udp_receive_picture_file(SocketInfo *socket_info) {
 /* Exibe uma resposta recebida do servidor */
 int _udp_show_text_response(SocketInfo *socket_info, struct timeval *after) {
     int size;
-    int bytes_read = recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
-    printf("%d bytes lidos; Resposta de tamanho %d\n", bytes_read, size);
+    recvfrom(socket_info->socket_fd, &size, sizeof(size), MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
 
     if (size > 0) {
         char buffer[size + 1];
-        bytes_read = recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
-        printf("%d bytes lidos de %d\n", bytes_read, size);
+        recvfrom(socket_info->socket_fd, buffer, size, MSG_WAITALL, socket_info->socket_addr, &socket_info->addr_len);
         buffer[size] = '\0';
 
         gettimeofday(after, NULL);

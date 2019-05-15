@@ -17,6 +17,5 @@
 
 #define SMALL_MESSAGE 300
 #define BIG_MESSAGE 1300
-#define FILE_MESSAGE 60000
 
 #endif
